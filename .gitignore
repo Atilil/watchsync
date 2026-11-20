@@ -1,0 +1,38 @@
+# Build outputs
+**/output/
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/publish_out/
+*.dll
+*.pdb
+*.nupkg
+*.zip
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# NuGet
+**/packages/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test results
+**/TestResults/
+
+# Cache
+**/cache/
+
+# direnv
+.direnv/
