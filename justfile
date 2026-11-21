@@ -18,6 +18,30 @@ default:
 build:
     dotnet build -c Release {{ project }}
 
+# Check that tool versions pinned outside the flake match what the flake provides
+check-pins:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    status=0
+    check() {
+      local name=$1 flake=$2 pinned=$3 where=$4
+      if [[ "$flake" == "$pinned" ]]; then
+        echo "ok    $name $flake"
+      else
+        echo "DRIFT $name: flake provides $flake, $where says $pinned"
+        status=1
+      fi
+    }
+    check "dotnet SDK" \
+      "$(nix eval --inputs-from . --raw nixpkgs#dotnet-sdk_10.version)" \
+      "$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' global.json)" \
+      global.json
+    check just \
+      "$(nix eval --inputs-from . --raw nixpkgs#just.version)" \
+      "$(sed -n 's/.*just-version: *//p' .github/workflows/ci.yml)" \
+      .github/workflows/ci.yml
+    exit "$status"
+
 # Start the local Jellyfin test instance
 dev-up:
     #!/usr/bin/env bash
