@@ -20,6 +20,7 @@
           ffmpeg
           yq-go
           zip
+          git-cliff
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";

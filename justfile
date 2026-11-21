@@ -46,8 +46,19 @@ package VERSION:
     }" "$meta" > "$out/meta.json"
 
     (cd "$out" && zip -q -X "../$name-$version.zip" ./*)
-    echo "$out.zip"
-    md5sum "$out.zip"
+    md5=$(md5sum "$out.zip" | cut -d' ' -f1)
+
+    # Release notes from the Conventional Commits since the previous tag.
+    tag="v{{ VERSION }}"
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+      git cliff --current --strip all > "$out.md"
+    else
+      git cliff --unreleased --tag "$tag" --strip all > "$out.md"
+    fi
+    printf '\n---\nMD5 `%s`\n' "$md5" >> "$out.md"
+
+    echo "$out.zip  $md5"
+    echo "$out.md"
 
 # Check that tool versions pinned outside the flake match what the flake provides
 check-pins:
@@ -71,6 +82,16 @@ check-pins:
       "$(nix eval --inputs-from . --raw nixpkgs#just.version)" \
       "$(sed -n 's/.*just-version: *//p' .github/workflows/ci.yml)" \
       .github/workflows/ci.yml
+    if [[ -f .github/workflows/release.yml ]]; then
+      check just \
+        "$(nix eval --inputs-from . --raw nixpkgs#just.version)" \
+        "$(sed -n 's/.*just-version: *//p' .github/workflows/release.yml)" \
+        .github/workflows/release.yml
+      check git-cliff \
+        "$(nix eval --inputs-from . --raw nixpkgs#git-cliff.version)" \
+        "$(sed -n 's/.*tool: *git-cliff@//p' .github/workflows/release.yml)" \
+        .github/workflows/release.yml
+    fi
     exit "$status"
 
 # Start the local Jellyfin test instance
