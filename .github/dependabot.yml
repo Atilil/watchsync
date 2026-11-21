@@ -8,6 +8,10 @@ updates:
       jellyfin:
         patterns:
           - "Jellyfin.*"
+    ignore:
+      # MUST match the .NET runtime Jellyfin runs on; bump the major with Jellyfin
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
