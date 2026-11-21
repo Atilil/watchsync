@@ -8,6 +8,9 @@ namespace Jellyfin.Plugin.WatchSync.Utils;
 /// </summary>
 public static class TitleUtils
 {
+    private static readonly Regex QualityTags = new(
+        @"\b(4k|uhd|hdr|dolby vision|dv|2160p|1080p|720p)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
     /// <summary>
     /// Normalizes a title by removing quality indicators (4K, UHD, etc.)
     /// to allow comparison between different versions of the same media.
@@ -22,17 +25,7 @@ public static class TitleUtils
         }
 
         // Remove common quality indicators
-        var normalized = title
-            .Replace("4K", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("UHD", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("HDR", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("Dolby Vision", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("DV", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("2160p", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("1080p", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("720p", "", StringComparison.OrdinalIgnoreCase)
-            .Trim()
-            .ToLowerInvariant();
+        var normalized = QualityTags.Replace(title, "").ToLowerInvariant();
 
         // Remove empty parentheses or brackets
         normalized = Regex.Replace(normalized, @"\s*[\[\(]\s*[\]\)]\s*", " ");

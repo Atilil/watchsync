@@ -18,6 +18,10 @@ default:
 build:
     dotnet build -c Release {{ project }}
 
+# Run the unit tests
+test:
+    dotnet test -c Release
+
 # Check that tool versions pinned outside the flake match what the flake provides
 check-pins:
     #!/usr/bin/env bash
