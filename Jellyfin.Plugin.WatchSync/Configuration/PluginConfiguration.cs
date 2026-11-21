@@ -14,7 +14,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public PluginConfiguration()
     {
         IsEnabled = true;
-        CompletionThreshold = 90;
         SyncWatchedStatus = true;
         SyncPlaybackPosition = true;
         SyncPlayCount = true;
@@ -22,7 +21,6 @@ public class PluginConfiguration : BasePluginConfiguration
         UseImdbId = true;
         UseTmdbId = true;
         UseTvdbId = true;
-        ProviderPriority = "IMDB,TMDB,TVDB";
         UseTitleYearFallback = false;
         ExcludedLibraryIds = new List<string>();
         ExcludedUserIds = new List<string>();
@@ -32,11 +30,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether the plugin is globally enabled.
     /// </summary>
     public bool IsEnabled { get; set; }
-
-    /// <summary>
-    /// Gets or sets the playback percentage threshold to consider media as "watched" (0-100).
-    /// </summary>
-    public int CompletionThreshold { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to sync watched/unwatched status.
@@ -72,11 +65,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether to use TVDB ID for matching.
     /// </summary>
     public bool UseTvdbId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the provider priority order (comma-separated).
-    /// </summary>
-    public string ProviderPriority { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to use title + year as fallback when no provider ID matches.

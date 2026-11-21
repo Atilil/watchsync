@@ -30,23 +30,7 @@
                                 <span>Enable synchronization</span>
                             </label>
                             <div class="fieldDescription">
-                                Enable or disable automatic synchronization during playback.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Completion threshold -->
-                    <div class="verticalSection">
-                        <h3 class="sectionTitle">Completion Threshold</h3>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="CompletionThreshold">
-                                Minimum percentage to mark as "watched"
-                            </label>
-                            <input type="number" id="CompletionThreshold" min="0" max="100" step="5"
-                                is="emby-input" />
-                            <div class="fieldDescription">
-                                Media will be considered "watched" when this playback percentage is reached
-                                (default: 90%).
+                                Enable or disable synchronization (live and scheduled).
                             </div>
                         </div>
                     </div>
@@ -102,7 +86,7 @@
 
                         <p class="description" style="margin-bottom: 1em;">
                             Select which identifiers to use for matching media between libraries.
-                            At least one common identifier is required.
+                            Copies match when they share at least one identifier and no identifier contradicts another.
                         </p>
 
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -111,7 +95,7 @@
                                 <span>IMDB ID</span>
                             </label>
                             <div class="fieldDescription">
-                                IMDB identifier (tt1234567). Very reliable for movies.
+                                IMDB identifier (tt1234567). Used for movies and series.
                             </div>
                         </div>
 
@@ -121,7 +105,7 @@
                                 <span>TMDB ID</span>
                             </label>
                             <div class="fieldDescription">
-                                The Movie Database identifier. Reliable for movies and series.
+                                The Movie Database identifier. Used for movies.
                             </div>
                         </div>
 
@@ -131,19 +115,7 @@
                                 <span>TVDB ID</span>
                             </label>
                             <div class="fieldDescription">
-                                TheTVDB identifier. Recommended for TV series.
-                            </div>
-                        </div>
-
-                        <div class="inputContainer" style="margin-top: 1em;">
-                            <label class="inputLabel inputLabelUnfocused" for="ProviderPriority">
-                                Priority order
-                            </label>
-                            <input type="text" id="ProviderPriority" is="emby-input"
-                                placeholder="IMDB,TMDB,TVDB" />
-                            <div class="fieldDescription">
-                                Order in which identifiers are checked (comma-separated).
-                                The first match found is used.
+                                TheTVDB identifier. Used for TV series.
                             </div>
                         </div>
 
@@ -153,7 +125,7 @@
                                 <span>Use Title + Year as fallback</span>
                             </label>
                             <div class="fieldDescription">
-                                If no identifier matches, attempt to match media by title and release year.
+                                Movies only: when no identifier is present on both copies, match by title (quality tags removed) and release year. Never overrides conflicting identifiers.
                                 <strong>Warning:</strong> may cause false positives.
                             </div>
                         </div>
@@ -229,7 +201,6 @@
                     const config = await ApiClient.getPluginConfiguration(pluginId);
 
                     document.querySelector('#IsEnabled').checked = config.IsEnabled;
-                    document.querySelector('#CompletionThreshold').value = config.CompletionThreshold;
                     document.querySelector('#SyncWatchedStatus').checked = config.SyncWatchedStatus;
                     document.querySelector('#SyncPlaybackPosition').checked = config.SyncPlaybackPosition;
                     document.querySelector('#SyncPlayCount').checked = config.SyncPlayCount;
@@ -237,7 +208,6 @@
                     document.querySelector('#UseImdbId').checked = config.UseImdbId;
                     document.querySelector('#UseTmdbId').checked = config.UseTmdbId;
                     document.querySelector('#UseTvdbId').checked = config.UseTvdbId;
-                    document.querySelector('#ProviderPriority').value = config.ProviderPriority || 'IMDB,TMDB,TVDB';
                     document.querySelector('#UseTitleYearFallback').checked = config.UseTitleYearFallback;
 
                     await loadLibraries(config.ExcludedLibraryIds || []);
@@ -326,7 +296,6 @@
                     const config = await ApiClient.getPluginConfiguration(pluginId);
 
                     config.IsEnabled = document.querySelector('#IsEnabled').checked;
-                    config.CompletionThreshold = parseInt(document.querySelector('#CompletionThreshold').value, 10);
                     config.SyncWatchedStatus = document.querySelector('#SyncWatchedStatus').checked;
                     config.SyncPlaybackPosition = document.querySelector('#SyncPlaybackPosition').checked;
                     config.SyncPlayCount = document.querySelector('#SyncPlayCount').checked;
@@ -334,7 +303,6 @@
                     config.UseImdbId = document.querySelector('#UseImdbId').checked;
                     config.UseTmdbId = document.querySelector('#UseTmdbId').checked;
                     config.UseTvdbId = document.querySelector('#UseTvdbId').checked;
-                    config.ProviderPriority = document.querySelector('#ProviderPriority').value;
                     config.UseTitleYearFallback = document.querySelector('#UseTitleYearFallback').checked;
 
                     // Collect excluded libraries (unchecked)
