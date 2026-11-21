@@ -17,6 +17,7 @@
           dotnet-sdk_10
           gitleaks
           just
+          ffmpeg
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";

@@ -1,17 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Jellyfin.Plugin.WatchSync.Utils;
+using Jellyfin.Data.Enums;
+using Jellyfin.Plugin.WatchSync.Configuration;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.WatchSync.Services;
 
 /// <summary>
-/// Media matching service between libraries using Provider IDs.
+/// Finds the other copies of an item (same movie or episode in other libraries).
+/// Candidates are fetched by provider id, then confirmed with <see cref="MediaIdentity"/>.
 /// </summary>
 public class MediaMatcher : IMediaMatcher
 {
@@ -32,214 +34,189 @@ public class MediaMatcher : IMediaMatcher
     /// <inheritdoc />
     public IReadOnlyList<BaseItem> FindMatchingItems(BaseItem sourceItem)
     {
-        if (sourceItem == null)
+        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var source = ToFacts(sourceItem);
+        if (source is null)
         {
             return Array.Empty<BaseItem>();
         }
 
-        var config = Plugin.Instance?.Configuration;
-        var excludedLibraries = config?.ExcludedLibraryIds ?? new List<string>();
+        var candidates = sourceItem is Episode episode
+            ? FindEpisodeCandidates(episode, config)
+            : FindMovieCandidates(source, config);
 
-        var matchingItems = new List<BaseItem>();
+        var excludedLibraries = config.ExcludedLibraryIds ?? new List<string>();
+        var matches = candidates
+            .Where(item => item.Id != sourceItem.Id)
+            .Where(item => !IsInExcludedLibrary(item, excludedLibraries))
+            .Where(item => AreSame(source, item, config))
+            .ToList();
 
-        // Get all items of the same type
-        var allItems = GetAllItemsOfSameType(sourceItem);
-
-        foreach (var item in allItems)
-        {
-            // Skip the source item itself
-            if (item.Id == sourceItem.Id)
-            {
-                continue;
-            }
-
-            // Skip items in excluded libraries
-            var libraryId = GetLibraryId(item);
-            if (libraryId != null && excludedLibraries.Contains(libraryId.Value.ToString()))
-            {
-                continue;
-            }
-
-            // Check if items match
-            if (AreItemsMatching(sourceItem, item))
-            {
-                matchingItems.Add(item);
-                _logger.LogDebug(
-                    "Found match for {SourceName}: {MatchName} (Library: {LibraryId})",
-                    sourceItem.Name,
-                    item.Name,
-                    libraryId);
-            }
-        }
-
-        _logger.LogInformation(
-            "Found {Count} match(es) for {ItemName}",
-            matchingItems.Count,
-            sourceItem.Name);
-
-        return matchingItems;
+        _logger.LogDebug("Found {Count} match(es) for {ItemName}", matches.Count, sourceItem.Name);
+        return matches;
     }
 
     /// <inheritdoc />
     public bool AreItemsMatching(BaseItem item1, BaseItem item2)
     {
-        if (item1 == null || item2 == null)
-        {
-            return false;
-        }
+        var facts = ToFacts(item1);
+        return facts is not null
+            && AreSame(facts, item2, Plugin.Instance?.Configuration ?? new PluginConfiguration());
+    }
 
-        // Items must be of the same type
-        if (item1.GetType() != item2.GetType())
-        {
-            return false;
-        }
+    /// <summary>
+    /// Translates a Jellyfin item into the plain facts used by <see cref="MediaIdentity"/>.
+    /// Returns null for item types WatchSync does not handle.
+    /// </summary>
+    /// <param name="item">The Jellyfin item.</param>
+    /// <returns>The item's facts, or null.</returns>
+    public static MediaFacts? ToFacts(BaseItem item) => item switch
+    {
+        Movie movie => new MediaFacts(MediaKind.Movie, movie.ProviderIds, Title: movie.Name, Year: movie.ProductionYear),
+        Episode episode => new MediaFacts(
+            MediaKind.Episode,
+            episode.ProviderIds,
+            episode.Series?.ProviderIds,
+            episode.ParentIndexNumber,
+            episode.IndexNumber),
+        _ => null
+    };
 
-        // Match by providers according to configuration
-        var config = Plugin.Instance?.Configuration;
-        var providerOrder = GetProviderOrder(config?.ProviderPriority ?? "IMDB,TMDB,TVDB");
+    private static bool AreSame(MediaFacts source, BaseItem candidate, PluginConfiguration config)
+    {
+        var facts = ToFacts(candidate);
+        return facts is not null && MediaIdentity.AreSame(
+            source,
+            facts,
+            MovieProviders(config),
+            SeriesProviders(config),
+            config.UseTitleYearFallback);
+    }
 
-        foreach (var provider in providerOrder)
+    private List<BaseItem> FindMovieCandidates(MediaFacts source, PluginConfiguration config)
+    {
+        var candidates = new List<BaseItem>();
+
+        var ids = KnownIds(source.ProviderIds, MovieProviders(config));
+        if (ids.Count > 0)
         {
-            switch (provider.ToUpperInvariant())
+            candidates.AddRange(_libraryManager.GetItemList(new InternalItemsQuery
             {
-                case "IMDB":
-                    if (config?.UseImdbId != false && TryMatchByProviderId(item1, item2, MetadataProvider.Imdb))
-                    {
-                        return true;
-                    }
-
-                    break;
-                case "TMDB":
-                    if (config?.UseTmdbId != false && TryMatchByProviderId(item1, item2, MetadataProvider.Tmdb))
-                    {
-                        return true;
-                    }
-
-                    break;
-                case "TVDB":
-                    if (config?.UseTvdbId != false && TryMatchByProviderId(item1, item2, MetadataProvider.Tvdb))
-                    {
-                        return true;
-                    }
-
-                    break;
-            }
+                IncludeItemTypes = [BaseItemKind.Movie],
+                HasAnyProviderId = ids,
+                IsVirtualItem = false,
+                Recursive = true
+            }));
         }
 
-        // For episodes, also check parent series + episode number
-        if (item1 is Episode episode1 && item2 is Episode episode2)
+        // The title + year fallback cannot be queried by id: fetch the movies of the same year.
+        if (config.UseTitleYearFallback && source.Year is not null)
         {
-            if (AreEpisodesMatching(episode1, episode2))
+            candidates.AddRange(_libraryManager.GetItemList(new InternalItemsQuery
             {
-                return true;
-            }
+                IncludeItemTypes = [BaseItemKind.Movie],
+                Years = [source.Year.Value],
+                IsVirtualItem = false,
+                Recursive = true
+            }));
         }
 
-        // Optional fallback: Title + Year
-        if (config?.UseTitleYearFallback == true)
-        {
-            if (TryMatchByTitleAndYear(item1, item2))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return candidates.DistinctBy(item => item.Id).ToList();
     }
 
-    private static string[] GetProviderOrder(string priorityString)
+    private List<BaseItem> FindEpisodeCandidates(Episode episode, PluginConfiguration config)
     {
-        if (string.IsNullOrWhiteSpace(priorityString))
+        var seriesIds = KnownIds(episode.Series?.ProviderIds, SeriesProviders(config));
+        if (seriesIds.Count == 0 || episode.ParentIndexNumber is null || episode.IndexNumber is null)
         {
-            return new[] { "IMDB", "TMDB", "TVDB" };
+            return [];
         }
 
-        return priorityString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
-
-    private static bool TryMatchByProviderId(BaseItem item1, BaseItem item2, MetadataProvider provider)
-    {
-        var id1 = item1.GetProviderId(provider);
-        var id2 = item2.GetProviderId(provider);
-
-        if (string.IsNullOrEmpty(id1) || string.IsNullOrEmpty(id2))
+        var series = _libraryManager.GetItemList(new InternalItemsQuery
         {
-            return false;
+            IncludeItemTypes = [BaseItemKind.Series],
+            HasAnyProviderId = seriesIds,
+            Recursive = true
+        });
+        if (series.Count == 0)
+        {
+            return [];
         }
 
-        return string.Equals(id1, id2, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool AreEpisodesMatching(Episode episode1, Episode episode2)
-    {
-        // Check that parent series match
-        var series1 = episode1.Series;
-        var series2 = episode2.Series;
-
-        if (series1 == null || series2 == null)
+        return _libraryManager.GetItemList(new InternalItemsQuery
         {
-            return false;
-        }
-
-        // Series must match
-        if (!AreItemsMatching(series1, series2))
-        {
-            return false;
-        }
-
-        // Check season and episode numbers
-        if (episode1.ParentIndexNumber != episode2.ParentIndexNumber)
-        {
-            return false;
-        }
-
-        if (episode1.IndexNumber != episode2.IndexNumber)
-        {
-            return false;
-        }
-
-        _logger.LogDebug(
-            "Matching episodes: {Series1} S{Season}E{Episode}",
-            series1.Name,
-            episode1.ParentIndexNumber,
-            episode1.IndexNumber);
-
-        return true;
-    }
-
-    private static bool TryMatchByTitleAndYear(BaseItem item1, BaseItem item2)
-    {
-        // Normalize titles for comparison
-        var title1 = TitleUtils.NormalizeTitle(item1.Name);
-        var title2 = TitleUtils.NormalizeTitle(item2.Name);
-
-        if (!string.Equals(title1, title2, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // Compare years
-        var year1 = item1.ProductionYear;
-        var year2 = item2.ProductionYear;
-
-        if (!year1.HasValue || !year2.HasValue)
-        {
-            return false;
-        }
-
-        return year1.Value == year2.Value;
-    }
-
-    private IEnumerable<BaseItem> GetAllItemsOfSameType(BaseItem sourceItem)
-    {
-        var query = new InternalItemsQuery
-        {
-            IncludeItemTypes = new[] { sourceItem.GetBaseItemKind() },
+            IncludeItemTypes = [BaseItemKind.Episode],
+            AncestorIds = series.Select(s => s.Id).ToArray(),
+            ParentIndexNumber = episode.ParentIndexNumber,
+            IndexNumber = episode.IndexNumber,
             IsVirtualItem = false,
             Recursive = true
-        };
+        }).ToList();
+    }
 
-        return _libraryManager.GetItemList(query);
+    /// <summary>
+    /// The subset of <paramref name="ids"/> limited to the given providers, ready for a query.
+    /// </summary>
+    private static Dictionary<string, string> KnownIds(IReadOnlyDictionary<string, string>? ids, IReadOnlyList<string> providers)
+    {
+        var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (ids is null)
+        {
+            return known;
+        }
+
+        foreach (var provider in providers)
+        {
+            if (ids.TryGetValue(provider, out var id) && !string.IsNullOrEmpty(id))
+            {
+                known[provider] = id;
+            }
+        }
+
+        return known;
+    }
+
+    private static List<string> MovieProviders(PluginConfiguration config)
+    {
+        var providers = new List<string>();
+        if (config.UseTmdbId)
+        {
+            providers.Add("Tmdb");
+        }
+
+        if (config.UseImdbId)
+        {
+            providers.Add("Imdb");
+        }
+
+        return providers;
+    }
+
+    private static List<string> SeriesProviders(PluginConfiguration config)
+    {
+        var providers = new List<string>();
+        if (config.UseTvdbId)
+        {
+            providers.Add("Tvdb");
+        }
+
+        if (config.UseImdbId)
+        {
+            providers.Add("Imdb");
+        }
+
+        return providers;
+    }
+
+    private static bool IsInExcludedLibrary(BaseItem item, List<string> excludedLibraries)
+    {
+        if (excludedLibraries.Count == 0)
+        {
+            return false;
+        }
+
+        var libraryId = GetLibraryId(item);
+        return libraryId is not null && excludedLibraries.Contains(libraryId.Value.ToString());
     }
 
     private static Guid? GetLibraryId(BaseItem item)
