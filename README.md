@@ -1,22 +1,23 @@
 # WatchSync
 
+<p align="center">
+  <img src="Jellyfin.Plugin.WatchSync/WatchSync.png" alt="WatchSync logo" />
+</p>
+
 <!--toc:start-->
 
-- [WatchSync](#watchsync)
-  - [Compatibility](#compatibility)
-  - [Features](#features)
-  - [How copies are matched](#how-copies-are-matched)
-    - [Known limitation](#known-limitation)
-  - [Installation](#installation)
-  - [Configuration](#configuration)
-  - [Contributing](#contributing)
+- [Compatibility](#compatibility)
+- [Features](#features)
+- [How copies are matched](#how-copies-are-matched)
+  - [Known limitation](#known-limitation)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Contributing](#contributing)
 
 <!--toc:end-->
 
 Jellyfin plugin that keeps watch history in sync between copies of the same
 media, for example a 1080p library and a 4K library.
-
-![WatchSync logo](Jellyfin.Plugin.WatchSync/WatchSync.png)
 
 Jellyfin stores watch history per item, and an item is tied to its file path:
 the 1080p and the 4K copy of the same movie are two items with two separate
