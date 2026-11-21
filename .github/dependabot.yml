@@ -8,7 +8,14 @@ updates:
       jellyfin:
         patterns:
           - "Jellyfin.*"
+      tests:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
     ignore:
+      # xUnit 4 requires opting into Microsoft.Testing.Platform; migrate deliberately.
+      - dependency-name: "xunit*"
+        update-types: ["version-update:semver-major"]
       # MUST match the .NET runtime Jellyfin runs on; bump the major with Jellyfin
       - dependency-name: "Microsoft.Extensions.*"
         update-types: ["version-update:semver-major"]
