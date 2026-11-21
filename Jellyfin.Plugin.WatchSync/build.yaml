@@ -19,11 +19,5 @@ description: |
 artifacts:
   - "Jellyfin.Plugin.WatchSync.dll"
 changelog: |
-  - Jellyfin 12.x support (built for 12.4, .NET 10).
-  - Fix the full sync task crashing on recent Jellyfin versions.
-  - Much faster: copies are looked up by provider id instead of scanning the library.
-  - Stricter matching: one shared id and no conflicting id; movies and episodes never mix.
-  - Un-marking an item now resets the other copies too.
-  - The full sync merges history without losing it, and only writes what changed.
-  - External tools writing user data (e.g. CrossWatch) are synced live.
-  - Removed settings: completion threshold and provider priority.
+  - Fix the other copy's item page still showing "not watched" after a sync,
+    until Jellyfin was restarted (the library view was already correct).
