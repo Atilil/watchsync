@@ -36,3 +36,6 @@ Thumbs.db
 
 # direnv
 .direnv/
+
+# Local Jellyfin test instance
+.dev/

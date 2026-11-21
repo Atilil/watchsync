@@ -16,6 +16,7 @@
         packages = with pkgs; [
           dotnet-sdk_10
           gitleaks
+          just
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";
