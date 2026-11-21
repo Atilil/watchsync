@@ -12,6 +12,7 @@ Without Nix, install the .NET SDK version pinned in `global.json` and
 ```bash
 just build          # compile the plugin
 just test           # run the unit tests
+just integration    # run the integration tests in an offline Jellyfin (podman)
 just lint           # run the pre-commit checks (needs the Nix dev shell)
 just dev-up         # start a local Jellyfin 12.4 instance (podman)
 just dev-media      # generate test media in 1080p and 4K libraries
