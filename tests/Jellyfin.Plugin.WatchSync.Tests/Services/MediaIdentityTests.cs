@@ -133,7 +133,61 @@ public class MediaIdentityTests
         Assert.True(MediaIdentity.AreSame(a, b, seriesProviders: ["Tvdb", "Imdb", "AniDB"]));
     }
 
+    // --- Title + year fallback (movies only, only when ids cannot decide) ---
+
+    [Fact]
+    public void Fallback_Disabled_SameTitleAndYear_AreNotSame()
+    {
+        var a = TitledMovie("Dune", 2021, ("Tmdb", "438631"));
+        var b = TitledMovie("Dune", 2021, ("Imdb", "tt1160419"));
+
+        Assert.False(MediaIdentity.AreSame(a, b));
+    }
+
+    [Fact]
+    public void Fallback_Enabled_NoCommonId_SameNormalizedTitleAndYear_AreSame()
+    {
+        var a = TitledMovie("Dune 4K", 2021, ("Tmdb", "438631"));
+        var b = TitledMovie("Dune", 2021, ("Imdb", "tt1160419"));
+
+        Assert.True(MediaIdentity.AreSame(a, b, useTitleYearFallback: true));
+    }
+
+    [Fact]
+    public void Fallback_Enabled_DifferentYears_AreNotSame()
+    {
+        Assert.False(MediaIdentity.AreSame(TitledMovie("Dune", 1984), TitledMovie("Dune", 2021), useTitleYearFallback: true));
+    }
+
+    [Fact]
+    public void Fallback_Enabled_MissingYear_AreNotSame()
+    {
+        Assert.False(MediaIdentity.AreSame(TitledMovie("Dune", 2021), TitledMovie("Dune", null), useTitleYearFallback: true));
+    }
+
+    [Fact]
+    public void Fallback_Enabled_IdsConflict_AreNotSame()
+    {
+        var a = TitledMovie("Dune", 2021, ("Tmdb", "438631"));
+        var b = TitledMovie("Dune", 2021, ("Tmdb", "841"));
+
+        Assert.False(MediaIdentity.AreSame(a, b, useTitleYearFallback: true));
+    }
+
+    [Fact]
+    public void Fallback_Enabled_NotUsedForEpisodes()
+    {
+        var a = new MediaFacts(MediaKind.Episode, Ids(), Ids(), 1, 1, "Pilot", 2008);
+        var b = new MediaFacts(MediaKind.Episode, Ids(), Ids(), 1, 1, "Pilot", 2008);
+
+        Assert.False(MediaIdentity.AreSame(a, b, useTitleYearFallback: true));
+    }
+
     // --- Helpers ---
+
+    private static MediaFacts TitledMovie(string title, int? year, params (string Provider, string Id)[] ids)
+        => new(MediaKind.Movie, Ids(ids), Title: title, Year: year);
+
 
     private static MediaFacts Movie(params (string Provider, string Id)[] ids)
         => new(MediaKind.Movie, Ids(ids));

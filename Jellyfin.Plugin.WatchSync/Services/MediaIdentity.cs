@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Jellyfin.Plugin.WatchSync.Utils;
 
 namespace Jellyfin.Plugin.WatchSync.Services;
 
@@ -22,12 +23,14 @@ public static class MediaIdentity
     /// <param name="b">Second item.</param>
     /// <param name="movieProviders">Providers to compare for movies; defaults to <see cref="DefaultMovieProviders"/>.</param>
     /// <param name="seriesProviders">Providers to compare for series; defaults to <see cref="DefaultSeriesProviders"/>.</param>
+    /// <param name="useTitleYearFallback">For movies whose ids cannot decide, compare normalized title + year.</param>
     /// <returns>True if the two items represent the same content.</returns>
     public static bool AreSame(
         MediaFacts a,
         MediaFacts b,
         IReadOnlyList<string>? movieProviders = null,
-        IReadOnlyList<string>? seriesProviders = null)
+        IReadOnlyList<string>? seriesProviders = null,
+        bool useTitleYearFallback = false)
     {
         if (a.Kind != b.Kind)
         {
@@ -41,24 +44,44 @@ public static class MediaIdentity
                 return false;
             }
 
-            return IdsAgree(a.SeriesProviderIds, b.SeriesProviderIds, seriesProviders ?? DefaultSeriesProviders);
+            return IdsAgree(a.SeriesProviderIds, b.SeriesProviderIds, seriesProviders ?? DefaultSeriesProviders) == true;
         }
 
-        return IdsAgree(a.ProviderIds, b.ProviderIds, movieProviders ?? DefaultMovieProviders);
+        var verdict = IdsAgree(a.ProviderIds, b.ProviderIds, movieProviders ?? DefaultMovieProviders);
+        if (verdict.HasValue)
+        {
+            return verdict.Value;
+        }
+
+        return useTitleYearFallback && TitleAndYearMatch(a, b);
     }
 
     /// <summary>
-    /// True when at least one of <paramref name="providers"/> has the same id on both sides,
-    /// and none of them has two different ids.
+    /// True when both items have a production year, the same year, and the same normalized title.
     /// </summary>
-    private static bool IdsAgree(
+    private static bool TitleAndYearMatch(MediaFacts a, MediaFacts b)
+    {
+        if (a.Year is null || a.Year != b.Year)
+        {
+            return false;
+        }
+
+        var titleA = TitleUtils.NormalizeTitle(a.Title);
+        return titleA.Length > 0 && titleA == TitleUtils.NormalizeTitle(b.Title);
+    }
+
+    /// <summary>
+    /// Compares the ids of the given providers. True: at least one matches and none conflicts.
+    /// False: a provider has two different ids. Null: no provider is present on both sides.
+    /// </summary>
+    private static bool? IdsAgree(
         IReadOnlyDictionary<string, string>? a,
         IReadOnlyDictionary<string, string>? b,
         IReadOnlyList<string> providers)
     {
         if (a is null || b is null)
         {
-            return false;
+            return null;
         }
 
         var anyMatch = false;
@@ -69,7 +92,7 @@ public static class MediaIdentity
                 continue;
             }
 
-            if(!string.Equals(idA, idB, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(idA, idB, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -77,7 +100,6 @@ public static class MediaIdentity
             anyMatch = true;
         }
 
-        return anyMatch;
-
+        return anyMatch ? true : null;
     }
 }

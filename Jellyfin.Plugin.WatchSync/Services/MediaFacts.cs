@@ -23,9 +23,13 @@ public enum MediaKind
 /// <param name="SeriesProviderIds">For an episode, the provider ids of its series.</param>
 /// <param name="Season">For an episode, its season number.</param>
 /// <param name="Episode">For an episode, its episode number.</param>
+/// <param name="Title">The item's title, used only by the optional title + year fallback.</param>
+/// <param name="Year">The production year, used only by the optional title + year fallback.</param>
 public sealed record MediaFacts(
     MediaKind Kind,
     IReadOnlyDictionary<string, string> ProviderIds,
     IReadOnlyDictionary<string, string>? SeriesProviderIds = null,
     int? Season = null,
-    int? Episode = null);
+    int? Episode = null,
+    string? Title = null,
+    int? Year = null);
