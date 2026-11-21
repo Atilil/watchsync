@@ -34,10 +34,6 @@ public class WatchSyncService : IHostedService
     private readonly IConflictResolver _conflictResolver;
     private readonly ILogger<WatchSyncService> _logger;
 
-    // Jellyfin raises UserDataSaved synchronously inside SaveUserData, on the caller's flow.
-    // Set while WatchSync writes, so the event raised by its own write is recognised and ignored.
-    private readonly AsyncLocal<bool> _writing = new();
-
     /// <summary>
     /// Initializes the synchronization service.
     /// </summary>
@@ -85,7 +81,7 @@ public class WatchSyncService : IHostedService
 
     private void ProcessUserDataSaved(UserDataSaveEventArgs e)
     {
-        if (_writing.Value || !SyncReasons.Contains(e.SaveReason))
+        if (SyncGuard.IsWriting || !SyncReasons.Contains(e.SaveReason))
         {
             return;
         }
@@ -164,15 +160,8 @@ public class WatchSyncService : IHostedService
 
     private void Save(User user, BaseItem target, UserItemData data)
     {
-        _writing.Value = true;
-        try
-        {
-            _userDataManager.SaveUserData(user, target, data, UserDataSaveReason.UpdateUserData, CancellationToken.None);
-        }
-        finally
-        {
-            _writing.Value = false;
-        }
+        SyncGuard.Run(() =>
+            _userDataManager.SaveUserData(user, target, data, UserDataSaveReason.UpdateUserData, CancellationToken.None));
     }
 
     private void SyncToItem(BaseItem source, BaseItem target, User user)

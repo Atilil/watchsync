@@ -176,7 +176,7 @@ public class MediaMatcher : IMediaMatcher
         return known;
     }
 
-    private static List<string> MovieProviders(PluginConfiguration config)
+    internal static List<string> MovieProviders(PluginConfiguration config)
     {
         var providers = new List<string>();
         if (config.UseTmdbId)
@@ -192,7 +192,7 @@ public class MediaMatcher : IMediaMatcher
         return providers;
     }
 
-    private static List<string> SeriesProviders(PluginConfiguration config)
+    internal static List<string> SeriesProviders(PluginConfiguration config)
     {
         var providers = new List<string>();
         if (config.UseTvdbId)
@@ -208,7 +208,7 @@ public class MediaMatcher : IMediaMatcher
         return providers;
     }
 
-    private static bool IsInExcludedLibrary(BaseItem item, List<string> excludedLibraries)
+    internal static bool IsInExcludedLibrary(BaseItem item, List<string> excludedLibraries)
     {
         if (excludedLibraries.Count == 0)
         {
