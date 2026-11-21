@@ -70,7 +70,7 @@ episode.
 ## Installation
 
 1. In the Jellyfin dashboard, add this plugin repository:
-   `https://raw.githubusercontent.com/Atilil/jellytag/main/manifest.json`
+   `https://raw.githubusercontent.com/Atilil/jellyfin-plugins/main/manifest.json`
 2. Install **WatchSync** from the plugin catalog, then restart Jellyfin.
 
 > **Warning:** back up your Jellyfin database before installing. The plugin
