@@ -50,6 +50,9 @@ public class MediaMatcher : IMediaMatcher
             .Where(item => item.Id != sourceItem.Id)
             .Where(item => !IsInExcludedLibrary(item, excludedLibraries))
             .Where(item => AreSame(source, item, config))
+            // Query results are fresh copies. SaveUserData only refreshes the instance it is
+            // given, and item pages read the cached one: sync through the cached instance.
+            .Select(item => _libraryManager.GetItemById(item.Id) ?? item)
             .ToList();
 
         _logger.LogDebug("Found {Count} match(es) for {ItemName}", matches.Count, sourceItem.Name);

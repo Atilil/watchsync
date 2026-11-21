@@ -215,7 +215,8 @@ public class FullSyncTask : IScheduledTask
                 target.PlaybackPositionTicks = merged[i].PositionTicks;
                 target.LastPlayedDate = merged[i].LastPlayedDate;
 
-                var item = group[i];
+                // Save on the cached instance (see MediaMatcher.FindMatchingItems).
+                var item = _libraryManager.GetItemById(group[i].Id) ?? group[i];
                 SyncGuard.Run(() =>
                     _userDataManager.SaveUserData(user, item, target, UserDataSaveReason.UpdateUserData, CancellationToken.None));
                 updated++;
