@@ -1,0 +1,41 @@
+name: Bug report
+description: Something does not sync, syncs the wrong item, or breaks Jellyfin.
+labels: [bug]
+body:
+  - type: input
+    id: jellyfin-version
+    attributes:
+      label: Jellyfin version
+      placeholder: "12.4.0"
+    validations:
+      required: true
+  - type: input
+    id: watchsync-version
+    attributes:
+      label: WatchSync version
+      description: Dashboard → Plugins.
+      placeholder: "2.0.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: >-
+        What you did, what you expected and what happened instead. For a sync
+        problem, name the two copies (title, library, movie or episode).
+    validations:
+      required: true
+  - type: textarea
+    id: ids
+    attributes:
+      label: Provider ids of the copies
+      description: >-
+        Matching relies on TMDB / IMDb ids (movies) or the series TVDB / IMDb ids
+        plus season and episode (episodes). Item → Edit metadata shows them.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Lines containing "WatchSync" from the Jellyfin log, around the problem.
+      render: text
