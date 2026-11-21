@@ -119,9 +119,59 @@ public class WatchSyncService : IHostedService
             e.Item.Name,
             matches.Count);
 
+        // Un-marking an item (TogglePlayed to unplayed) is Jellyfin's MarkUnplayed, which wipes the
+        // play count, position and last played date. Mirror that wipe instead of merging fields.
+        // Only this event proves a reset: a never-watched item looks the same.
+        var isUnmark = e.SaveReason == UserDataSaveReason.TogglePlayed && e.UserData is { Played: false };
+
         foreach (var target in matches)
         {
-            SyncToItem(e.Item, target, user);
+            if (isUnmark)
+            {
+                ResetItem(e.Item, target, user);
+            }
+            else
+            {
+                SyncToItem(e.Item, target, user);
+            }
+        }
+    }
+
+    private void ResetItem(BaseItem source, BaseItem target, User user)
+    {
+        try
+        {
+            var targetData = _userDataManager.GetUserData(user, target);
+            if (targetData is null
+                || (!targetData.Played && targetData.PlayCount == 0 && targetData.PlaybackPositionTicks == 0 && targetData.LastPlayedDate is null))
+            {
+                return;
+            }
+
+            targetData.Played = false;
+            targetData.PlayCount = 0;
+            targetData.PlaybackPositionTicks = 0;
+            targetData.LastPlayedDate = null;
+            Save(user, target, targetData);
+
+            _logger.LogInformation("Reset {TargetName} (un-marked on {SourceName})", target.Name, source.Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting {TargetName}", target.Name);
+        }
+    }
+
+    private void Save(User user, BaseItem target, UserItemData data)
+    {
+        _writing.Value = true;
+        try
+        {
+            _userDataManager.SaveUserData(user, target, data, UserDataSaveReason.UpdateUserData, CancellationToken.None);
+        }
+        finally
+        {
+            _writing.Value = false;
         }
     }
 
@@ -161,15 +211,7 @@ public class WatchSyncService : IHostedService
                 targetData.LastPlayedDate = syncData.LastPlayedDate;
             }
 
-            _writing.Value = true;
-            try
-            {
-                _userDataManager.SaveUserData(user, target, targetData, UserDataSaveReason.UpdateUserData, CancellationToken.None);
-            }
-            finally
-            {
-                _writing.Value = false;
-            }
+            Save(user, target, targetData);
 
             _logger.LogInformation(
                 "Synced {SourceName} -> {TargetName} (Played: {Played}, Position: {Position})",
