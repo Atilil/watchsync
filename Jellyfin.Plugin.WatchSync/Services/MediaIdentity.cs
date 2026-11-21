@@ -57,6 +57,62 @@ public static class MediaIdentity
     }
 
     /// <summary>
+    /// Identity keys of an item, used to bucket candidate copies before confirming them with
+    /// <see cref="AreSame"/>. Two copies of the same content share at least one key; sharing a key
+    /// is not enough on its own (ids may conflict elsewhere).
+    /// </summary>
+    /// <param name="facts">The item.</param>
+    /// <param name="movieProviders">Providers used for movies; defaults to <see cref="DefaultMovieProviders"/>.</param>
+    /// <param name="seriesProviders">Providers used for series; defaults to <see cref="DefaultSeriesProviders"/>.</param>
+    /// <param name="useTitleYearFallback">Also emit a title + year key for movies.</param>
+    /// <returns>Keys such as <c>movie:tmdb:438631</c> or <c>episode:tvdb:81189:s1e2</c>.</returns>
+    public static IReadOnlyList<string> GetKeys(
+        MediaFacts facts,
+        IReadOnlyList<string>? movieProviders = null,
+        IReadOnlyList<string>? seriesProviders = null,
+        bool useTitleYearFallback = false)
+    {
+        var keys = new List<string>();
+
+        if (facts.Kind == MediaKind.Episode)
+        {
+            if (facts.SeriesProviderIds is null || facts.Season is null || facts.Episode is null)
+            {
+                return keys;
+            }
+
+            foreach (var provider in seriesProviders ?? DefaultSeriesProviders)
+            {
+                if (facts.SeriesProviderIds.TryGetValue(provider, out var id) && !string.IsNullOrEmpty(id))
+                {
+                    keys.Add($"episode:{provider}:{id}:s{facts.Season}e{facts.Episode}".ToLowerInvariant());
+                }
+            }
+
+            return keys;
+        }
+
+        foreach (var provider in movieProviders ?? DefaultMovieProviders)
+        {
+            if (facts.ProviderIds.TryGetValue(provider, out var id) && !string.IsNullOrEmpty(id))
+            {
+                keys.Add($"movie:{provider}:{id}".ToLowerInvariant());
+            }
+        }
+
+        if (useTitleYearFallback && facts.Year is not null)
+        {
+            var title = TitleUtils.NormalizeTitle(facts.Title);
+            if (title.Length > 0)
+            {
+                keys.Add($"movie:title:{title}:{facts.Year}");
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>
     /// True when both items have a production year, the same year, and the same normalized title.
     /// </summary>
     private static bool TitleAndYearMatch(MediaFacts a, MediaFacts b)

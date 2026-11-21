@@ -183,6 +183,49 @@ public class MediaIdentityTests
         Assert.False(MediaIdentity.AreSame(a, b, useTitleYearFallback: true));
     }
 
+    // --- GetKeys ---
+
+    [Fact]
+    public void GetKeys_Movie_OneKeyPerKnownProvider()
+    {
+        var keys = MediaIdentity.GetKeys(Movie(("Tmdb", "438631"), ("Imdb", "tt1160419"), ("Tvdb", "1")));
+
+        Assert.Equal(["movie:tmdb:438631", "movie:imdb:tt1160419"], keys);
+    }
+
+    [Fact]
+    public void GetKeys_Episode_UsesSeriesIdsSeasonAndEpisode()
+    {
+        var keys = MediaIdentity.GetKeys(Episode(1, 2, ("Tvdb", "81189"), ("Imdb", "tt0903747")));
+
+        Assert.Equal(["episode:tvdb:81189:s1e2", "episode:imdb:tt0903747:s1e2"], keys);
+    }
+
+    [Fact]
+    public void GetKeys_MovieAndEpisodeWithSameNumber_NeverShareAKey()
+    {
+        var movie = MediaIdentity.GetKeys(Movie(("Imdb", "tt0903747")));
+        var episode = MediaIdentity.GetKeys(Episode(1, 2, ("Imdb", "tt0903747")));
+
+        Assert.Empty(movie.Intersect(episode));
+    }
+
+    [Fact]
+    public void GetKeys_EpisodeWithoutNumber_HasNoKey()
+    {
+        Assert.Empty(MediaIdentity.GetKeys(Episode(1, null, ("Tvdb", "81189"))));
+    }
+
+    [Fact]
+    public void GetKeys_TitleFallback_CopiesShareTheTitleKey()
+    {
+        var a = MediaIdentity.GetKeys(TitledMovie("Dune 4K", 2021), useTitleYearFallback: true);
+        var b = MediaIdentity.GetKeys(TitledMovie("Dune", 2021), useTitleYearFallback: true);
+
+        Assert.Equal(["movie:title:dune:2021"], a);
+        Assert.Equal(a, b);
+    }
+
     // --- Helpers ---
 
     private static MediaFacts TitledMovie(string title, int? year, params (string Provider, string Id)[] ids)
