@@ -104,10 +104,12 @@ dev-media:
 dev-deploy: build
     #!/usr/bin/env bash
     set -euo pipefail
-    cp "{{ build_dir }}/{{ project }}".{dll,pdb} "{{ dev_plugin_dir }}/"
     since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    # Stop before copying: Jellyfin reads the loaded DLL from disk, overwriting it live
+    # makes the old plugin crash on shutdown ("Bad IL range").
     # `podman restart` races rootless pasta for the host port: stop, then retry start.
     podman stop "{{ dev_container }}" >/dev/null
+    cp "{{ build_dir }}/{{ project }}".{dll,pdb} "{{ dev_plugin_dir }}/"
     for _ in $(seq 10); do podman start "{{ dev_container }}" >/dev/null 2>&1 && break; sleep 1; done
     timeout 180 bash -c 'until curl -sf http://localhost:{{ dev_port }}/health >/dev/null; do sleep 2; done'
     podman logs --since "$since" "{{ dev_container }}" 2>&1 | grep -E 'WatchSync|\[ERR\]' || true
