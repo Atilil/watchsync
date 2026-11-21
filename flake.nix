@@ -18,6 +18,8 @@
           gitleaks
           just
           ffmpeg
+          yq-go
+          zip
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";

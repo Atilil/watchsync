@@ -22,6 +22,33 @@ build:
 test:
     dotnet test -c Release
 
+# Build the release zip for VERSION (e.g. 2.0.0) into artifacts/, with meta.json from build.yaml
+package VERSION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ "{{ VERSION }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "VERSION must be X.Y.Z, got {{ VERSION }}" >&2; exit 1; }
+    # Jellyfin parses System.Version, where a missing 4th component is -1 (2.0.0 < 2.0.0.0).
+    version="{{ VERSION }}.0"
+    meta="{{ project }}/build.yaml"
+    name=$(yq -r '.name' "$meta" | tr '[:upper:]' '[:lower:]')
+    out="artifacts/$name-$version"
+    rm -rf "$out" "$out.zip"
+    mkdir -p "$out"
+
+    dotnet build -c Release -p:Version="{{ VERSION }}" "{{ project }}"
+    for artifact in $(yq -r '.artifacts[]' "$meta"); do cp "{{ build_dir }}/$artifact" "$out/"; done
+
+    yq -o=json "{
+      \"guid\": .guid, \"name\": .name, \"version\": \"$version\", \"targetAbi\": .targetAbi,
+      \"framework\": .framework, \"owner\": .owner, \"category\": .category,
+      \"overview\": .overview, \"description\": .description, \"changelog\": .changelog,
+      \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+    }" "$meta" > "$out/meta.json"
+
+    (cd "$out" && zip -q -X "../$name-$version.zip" ./*)
+    echo "$out.zip"
+    md5sum "$out.zip"
+
 # Check that tool versions pinned outside the flake match what the flake provides
 check-pins:
     #!/usr/bin/env bash

@@ -39,3 +39,6 @@ Thumbs.db
 
 # Local Jellyfin test instance
 .dev/
+
+# Release packages (just package)
+artifacts/
