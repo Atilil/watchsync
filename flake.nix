@@ -25,6 +25,7 @@
           actionlint
           shellcheck
           markdownlint-cli2
+          jq
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";
