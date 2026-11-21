@@ -34,9 +34,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          version="${TAG#V}"
+          version="${TAG#v}"
           just package "$version"
-          gh release crete "$TAG artifacts/*.zip" \
+          gh release create "$TAG" artifacts/*.zip \
             --draft \
             --title "WatchSync $version" \
             --notes-file artifacts/*.md
