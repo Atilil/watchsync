@@ -21,6 +21,10 @@
           yq-go
           zip
           git-cliff
+          pre-commit
+          actionlint
+          shellcheck
+          markdownlint-cli2
         ];
 
         DOTNET_CLI_TELEMETRY_OPTOUT = "1";

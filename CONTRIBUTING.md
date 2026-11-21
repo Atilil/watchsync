@@ -1,7 +1,7 @@
 # Contributing
 
-Issues and pull requests are welcome. Every pull request is built and tested by
-GitHub Actions.
+Issues and pull requests are welcome. Every pull request is linted, built and
+tested by GitHub Actions.
 
 ## Development environment
 
@@ -12,6 +12,7 @@ Without Nix, install the .NET SDK version pinned in `global.json` and
 ```bash
 just build          # compile the plugin
 just test           # run the unit tests
+just lint           # run the pre-commit checks (needs the Nix dev shell)
 just dev-up         # start a local Jellyfin 12.4 instance (podman)
 just dev-media      # generate test media in 1080p and 4K libraries
 just dev-deploy     # build, install into the local instance, restart it
@@ -24,5 +25,6 @@ The local instance listens on <http://localhost:8096>.
 
 Commit messages follow
 [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`,
-`perf:`…): the release notes are generated from them. Releases are built by
+`perf:`…): the release notes are generated from them. Pull requests are squash
+merged, so the PR title must follow it too; CI checks it. Releases are built by
 GitHub Actions when a `vX.Y.Z` tag is pushed.
